@@ -39,7 +39,7 @@ STATUSES_COLOR = {'blue': {'symbol': 'S',
 
 
 ENDCOLLOR = '\033[0m'
-ANIME_SYMBOL = ['..', '>>']
+ANIME_SYMBOL = ['', '>>']
 AUTHOR_COLLOR = '\033[94m'
 MSG_COLLOR = '\033[93m'
 
@@ -51,7 +51,7 @@ RESULT_TO_COLOR = {"FAILURE": 'red',
                    }
 
 
-def get_formated_status(job_color, format_pattern="%(color)s%(symbol)s%(run_status)s%(endcollor)s", extra_params=None):
+def get_formated_status(job_color, format_pattern="%(color)s%(descr)s%(run_status)s%(endcollor)s", extra_params=None):
     if not extra_params:
         extra_params = {}
     color_status = job_color.split('_')
@@ -236,10 +236,17 @@ class JenkinsCli(object):
             print("Cannot set branch name")
 
     def start(self, args):
-        for job in args.job_name:
-            job_name = self._check_job(job)
-            start_status = self.jenkins.build_job(job_name)
+        if len(args.job_name) > 1:
             print("%s: %s" % (job_name, 'started' if not start_status else start_status))
+            print("You can only build one job at a time, you give %s." % (len(args.job_name)))
+            sys.exit(1)
+        else:
+            job_name = self._check_job(args.job_name[0])
+            #tagName = self._check_tagName(args.tagName)
+            if args.tagName:
+                start_status = self.jenkins.build_job(job_name,parameters={"tagName":args.tagName})
+            else:
+                start_status = self.jenkins.build_job(job_name)
 
     def _get_build_changesets(self, build):
         if 'changeSet' in build and 'items' in build['changeSet']:
@@ -280,7 +287,7 @@ class JenkinsCli(object):
         else:
             print("%s job is not running" % job_name)
 
-    def _get_build_number(self, job_name, build_number=None):
+    def _get_build_number(self, job_name, build_number):
         info = self.jenkins.get_job_info(job_name)
         if not info['lastBuild']:
             return None
@@ -333,7 +340,6 @@ class JenkinsCli(object):
             if args.i:
                 build_info = self.jenkins.get_build_info(job_name, build_number)
                 while build_info['building']:
-                    sleep(args.interval)
                     console_out = self.jenkins.get_build_console_output(job_name, build_number)
                     console_out = console_out.splitlines()
                     new_line_num = len(console_out)
@@ -341,6 +347,7 @@ class JenkinsCli(object):
                         print("\n".join(console_out[last_line_num:]))
                         last_line_num = new_line_num
                     build_info = self.jenkins.get_build_info(job_name, build_number)
+                    sleep(args.interval)
 
     def building(self, args):
         args.a = True
@@ -359,19 +366,3 @@ class JenkinsCli(object):
                 print("%s estimated time left %s" % (display_name, eta))
         else:
             print("Nothing is being built now")
-
-    def wait(self, args):
-        """ Wait for the next building job, if there is one currently running,
-        it will return immediately"""
-        job_name = self._check_job(args.job_name)
-        job_info = self.jenkins.get_job_info(args.job_name, 1)
-        build_number = self._get_build_number(job_name)
-
-        if not job_info:
-            job_info = {}
-        old_build_number = build_number
-        while build_number == old_build_number:
-            if job_info.get('lastBuild', {}).get('building'):
-                break
-            build_number = self._get_build_number(job_name)
-            sleep(args.interval)

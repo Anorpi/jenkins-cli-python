@@ -41,6 +41,7 @@ def load_parser():
 
     start_parser = subparsers.add_parser('start', help='Start job')
     start_parser.add_argument('job_name', help='Job to start', nargs='*')
+    start_parser.add_argument('-tag', '--tagName', help='add parameters for build jobs')
 
     start_parser = subparsers.add_parser('info', help='Job info')
     start_parser.add_argument('job_name', help='Job to get info for')
@@ -54,13 +55,6 @@ def load_parser():
 
     stop_parser = subparsers.add_parser('stop', help='Stop job')
     stop_parser.add_argument('job_name', help='Job to stop')
-
-    wait_parser = subparsers.add_parser('wait',
-                                        help='Wait for the next building job')
-    wait_parser.add_argument('job_name', help='Job to wait')
-    wait_parser.add_argument('-t', '--interval',
-                             help='refresh interval in seconds', default=3,
-                             type=check_nonnegative)
 
     console_parser = subparsers.add_parser('console', help='Show console for the build')
     console_parser.add_argument('job_name', help='Job to show console for')
